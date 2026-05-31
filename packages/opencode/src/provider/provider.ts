@@ -1428,12 +1428,19 @@ export const layer = Layer.effect(
           if (!stored) continue
           if (!plugin.auth.loader) continue
 
+          // Loader gets a JSON-safe clone (no functions/symbols cross the plugin boundary);
+          // copy back only `cost` so subscription loaders can still zero per-model pricing.
+          const liveProvider = database[plugin.auth!.provider]
+          const publicProvider = toPublicInfo(liveProvider)
           const options = yield* Effect.promise(() =>
-            plugin.auth!.loader!(
-              () => bridge.promise(auth.get(providerID).pipe(Effect.orDie)) as any,
-              toPublicInfo(database[plugin.auth!.provider]),
-            ),
+            plugin.auth!.loader!(() => bridge.promise(auth.get(providerID).pipe(Effect.orDie)) as any, publicProvider),
           )
+          if (liveProvider?.models && publicProvider?.models) {
+            for (const [modelID, publicModel] of Object.entries(publicProvider.models)) {
+              const liveModel = liveProvider.models[modelID]
+              if (liveModel && publicModel.cost !== undefined) liveModel.cost = publicModel.cost
+            }
+          }
           const opts = options ?? {}
           const patch: Partial<Info> = providers[providerID] ? { options: opts } : { source: "custom", options: opts }
           mergeProvider(providerID, patch)
