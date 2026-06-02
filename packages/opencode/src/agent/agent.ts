@@ -26,6 +26,8 @@ import * as Option from "effect/Option"
 import * as OtelTracer from "@effect/opentelemetry/Tracer"
 import { type DeepMutable } from "@opencode-ai/core/schema"
 
+const normalizeAgentName = (name: string) => name.replace(/[\u200B-\u200D\uFEFF]/g, "").trim().toLowerCase()
+
 export const Info = Schema.Struct({
   name: Schema.String,
   description: Schema.optional(Schema.String),
@@ -326,6 +328,10 @@ export const layer = Layer.effect(
         }
 
         const get = Effect.fnUntraced(function* (agent: string) {
+          if (agent in agents) return agents[agent]
+          const wanted = normalizeAgentName(agent)
+          const key = Object.keys(agents).find((name) => normalizeAgentName(name) === wanted)
+          if (key) return agents[key]
           return agents[agent]
         })
 
