@@ -40,7 +40,12 @@ export abstract class NamedError extends Error {
         public readonly data: Data,
         options?: ErrorOptions,
       ) {
-        super(name, options)
+        // Error.message carries data.message when present; the tag stays on `.name`.
+        const detail =
+          data && typeof data === "object" && "message" in data && typeof (data as { message?: unknown }).message === "string"
+            ? `${name}: ${(data as { message: string }).message}`
+            : name
+        super(detail, options)
         this.name = name
       }
 
